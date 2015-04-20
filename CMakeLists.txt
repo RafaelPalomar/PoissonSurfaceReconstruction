@@ -6,7 +6,10 @@ project(PoissonReconstruction)
 find_package(Qt5Widgets REQUIRED)
 
 find_package(VTK REQUIRED)
+find_package(ITK REQUIRED)
+
 include(${VTK_USE_FILE})
+include(${ITK_USE_FILE})
 
 if( ${VTK_BUILD_SHARED_LIBS} MATCHES ON )
   set( SHARED_LIBS "SHARED" )
@@ -52,4 +55,3 @@ option( BUILD_DOCUMENTATION "Build Doxygen Documentation" OFF )
 if( BUILD_DOCUMENTATION )
   add_subdirectory( documentation )
 endif( BUILD_DOCUMENTATION )
-
