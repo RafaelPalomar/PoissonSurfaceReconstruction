@@ -52,6 +52,7 @@
 #include <itkSobelOperator.h>
 #include <itkNeighborhoodOperatorImageFilter.h>
 #include <itkAnalyzeImageIO.h>
+#include <itkImageMaskSpatialObject.h>
 
 //VTK includes
 #include <vtkSmartPointer.h>
@@ -73,15 +74,20 @@
 
 //-------------------------------------------------------------------------------
 //Type definitions
-typedef itk::Image<float ,3> ImageType;
-typedef ImageType::Pointer ImagePointer;
+typedef itk::Image<unsigned char ,3> ImageType;
+typedef itk::Image<float, 3> FloatType;
+typedef FloatType::Pointer ImagePointer;
 typedef itk::ImageFileReader<ImageType> ReaderType;
-typedef itk::ImageFileWriter<ImageType> WriterType;
-typedef itk::ZeroCrossingImageFilter<ImageType, ImageType> ZeroCrossingFilterType;
-typedef itk::DerivativeImageFilter<ImageType, ImageType> DerivativeFilterType;
-typedef itk::OrientImageFilter<ImageType, ImageType> OrientFilterType;
+typedef itk::ImageFileWriter<FloatType> WriterType;
+typedef itk::ZeroCrossingImageFilter<FloatType, FloatType> ZeroCrossingFilterType;
+typedef itk::DerivativeImageFilter<FloatType, FloatType> DerivativeFilterType;
+typedef itk::OrientImageFilter<FloatType, FloatType> OrientFilterType;
 typedef itk::SobelOperator<float, 3> SobelOperatorType;
-typedef itk::NeighborhoodOperatorImageFilter<ImageType, ImageType> NeighborhoodOperatorImageFilterType;
+typedef itk::NeighborhoodOperatorImageFilter<FloatType, FloatType> NeighborhoodOperatorImageFilterType;
+typedef itk::ImageMaskSpatialObject< 3 > ImageMaskSpatialObjectType;
+typedef itk::CastImageFilter<ImageType, FloatType> CastFilterType;
+
+
 
 //-------------------------------------------------------------------------------
 int main(int argc, char *argv[])
@@ -105,7 +111,16 @@ int main(int argc, char *argv[])
   reader->Update();
   ImageType::Pointer segmentationImage = reader->GetOutput();
 
-  ImageType::Pointer orientedSegmentationImage = reader->GetOutput();
+  ImageMaskSpatialObjectType::Pointer
+    imageMaskSpatialObject  = ImageMaskSpatialObjectType::New();
+
+  imageMaskSpatialObject->SetImage ( segmentationImage );
+
+  ImageType::RegionType boundingBoxRegion =
+    imageMaskSpatialObject->GetAxisAlignedBoundingBoxRegion();
+
+  CastFilterType::Pointer castFilter = CastFilterType::New();
+  castFilter->SetInput(segmentationImage);
 
 
   //-------------------------------------------------------------------------------
@@ -121,9 +136,9 @@ int main(int argc, char *argv[])
   //Apply sobel operator (x direction)
   NeighborhoodOperatorImageFilterType::Pointer xFilter = NeighborhoodOperatorImageFilterType::New();
   xFilter->SetOperator(xSobelOperator);
-  xFilter->SetInput(orientedSegmentationImage);
+  xFilter->SetInput(castFilter->GetOutput());
   xFilter->Update();
-  ImageType::Pointer xDerivativeImage = xFilter->GetOutput();
+  FloatType::Pointer xDerivativeImage = xFilter->GetOutput();
 
   //Create the sobel operator (y direction)
   SobelOperatorType ySobelOperator;
@@ -133,9 +148,9 @@ int main(int argc, char *argv[])
   //Apply sobel operator (y direction)
   NeighborhoodOperatorImageFilterType::Pointer yFilter = NeighborhoodOperatorImageFilterType::New();
   yFilter->SetOperator(ySobelOperator);
-  yFilter->SetInput(orientedSegmentationImage);
+  yFilter->SetInput(castFilter->GetOutput());
   yFilter->Update();
-  ImageType::Pointer yDerivativeImage = yFilter->GetOutput();
+  FloatType::Pointer yDerivativeImage = yFilter->GetOutput();
 
   //Create the sobel operator (x direction)
   SobelOperatorType zSobelOperator;
@@ -145,34 +160,33 @@ int main(int argc, char *argv[])
   //Apply sobel operator (x direction)
   NeighborhoodOperatorImageFilterType::Pointer zFilter = NeighborhoodOperatorImageFilterType::New();
   zFilter->SetOperator(zSobelOperator);
-  zFilter->SetInput(orientedSegmentationImage);
+  zFilter->SetInput(castFilter->GetOutput());
   zFilter->Update();
-  ImageType::Pointer zDerivativeImage = zFilter->GetOutput();
+  FloatType::Pointer zDerivativeImage = zFilter->GetOutput();
 
 
   //Create magnitude image
-  typedef itk::ImageDuplicator< ImageType > DuplicatorType;
+  typedef itk::ImageDuplicator< FloatType > DuplicatorType;
   DuplicatorType::Pointer duplicator = DuplicatorType::New();
-  duplicator->SetInputImage(orientedSegmentationImage);
+  duplicator->SetInputImage(castFilter->GetOutput());
   duplicator->Update();
-  ImageType::Pointer magnitudeImage = duplicator->GetOutput();
+  FloatType::Pointer magnitudeImage = duplicator->GetOutput();
 
 
-  itk::ImageRegionConstIteratorWithIndex<ImageType> xIt(xDerivativeImage,
+  itk::ImageRegionConstIteratorWithIndex<FloatType> xIt(xDerivativeImage,
                                                         xDerivativeImage->GetLargestPossibleRegion());
-  itk::ImageRegionConstIteratorWithIndex<ImageType> yIt(yDerivativeImage,
+  itk::ImageRegionConstIteratorWithIndex<FloatType> yIt(yDerivativeImage,
                                                         yDerivativeImage->GetLargestPossibleRegion());
-  itk::ImageRegionConstIteratorWithIndex<ImageType> zIt(zDerivativeImage,
+  itk::ImageRegionConstIteratorWithIndex<FloatType> zIt(zDerivativeImage,
                                                         zDerivativeImage->GetLargestPossibleRegion());
-  itk::ImageRegionIteratorWithIndex<ImageType> magnitudeIt(magnitudeImage,
+  itk::ImageRegionIteratorWithIndex<FloatType> magnitudeIt(magnitudeImage,
                                                            magnitudeImage->GetLargestPossibleRegion());
-  itk::ImageRegionConstIteratorWithIndex<ImageType> orientedSegmentationIt(orientedSegmentationImage,
-                                                                           orientedSegmentationImage->GetLargestPossibleRegion());
-  itk::ImageRegionConstIteratorWithIndex<ImageType> segmentationIt(segmentationImage,
-                                                                   segmentationImage->GetLargestPossibleRegion());
 
-  ImageType::IndexType index;
-  ImageType::PointType point;
+  itk::ImageRegionConstIteratorWithIndex<FloatType> segmentationIt(castFilter->GetOutput(),
+                                                                   castFilter->GetOutput()->GetLargestPossibleRegion());
+
+  FloatType::IndexType index;
+  FloatType::PointType point;
 
   vtkSmartPointer<vtkPolyData> cloudOfPoints =
     vtkSmartPointer<vtkPolyData>::New();
@@ -184,7 +198,6 @@ int main(int argc, char *argv[])
 
   //Compute the gradient image (only interior of liver)
   magnitudeIt.GoToBegin();
-  orientedSegmentationIt.GoToBegin();
   xIt.GoToBegin();
   yIt.GoToBegin();
   zIt.GoToBegin();
@@ -196,14 +209,14 @@ int main(int argc, char *argv[])
       gradientVector[1] = yIt.Get();
       gradientVector[2] = zIt.Get();
 
-      if(orientedSegmentationIt.Get() != 0){
+      if(segmentationIt.Get() != 0){
         magnitudeIt.Set(sqrt(gradientVector[0]*gradientVector[0]+
                              gradientVector[1]*gradientVector[1]+
                              gradientVector[2]*gradientVector[2]));
 
         if(magnitudeIt.Get()>0){
           index = segmentationIt.GetIndex();
-          segmentationImage->TransformIndexToPhysicalPoint(index, point);
+          castFilter->GetOutput()->TransformIndexToPhysicalPoint(index, point);
 
           vtkIdType id = points->InsertNextPoint(point[0],point[1],point[2]);
           pointGradient->InsertNextTuple(gradientVector);
@@ -213,7 +226,6 @@ int main(int argc, char *argv[])
         magnitudeIt.Set(0);
 
       ++magnitudeIt;
-      ++orientedSegmentationIt;
       ++segmentationIt;
       ++xIt;
       ++yIt;
