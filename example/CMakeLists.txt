@@ -1,5 +1,5 @@
 add_executable(PoissonReconstruction Example.cxx )
-target_link_libraries( PoissonReconstruction vtkPoissonReconstruction ${ITK_LIBRARIES})
+target_link_libraries( PoissonReconstruction vtkPoissonReconstruction ${VTK_LIBRARIES} ${ITK_LIBRARIES})
 
 add_test( PoissonReconstructionTest
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/PoissonReconstruction
