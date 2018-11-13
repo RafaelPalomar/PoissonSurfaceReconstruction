@@ -8,7 +8,7 @@ do
 	extension="${filename##*.}"
 	filename="${filename%.*}"
 
-	/build/bin/PoissonSurfaceReconstruction /inputdata/${file} ${depth} /outputdata/${filename}_poisson.${extension}
+	/build/bin/PoissonReconstruction /inputdata/${file} ${depth} /outputdata/${filename}_poisson.${extension}
 	
     done
 done
