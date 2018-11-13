@@ -5,10 +5,11 @@ for file in ${FILES}
 do
     for depth in ${DEPTHS}
     do
-	extension="${file##*.}"
-	filename="${file%.*}"
+	base=$(basename ${file})
+	extension="${base##*.}"
+	filename="${base%.*}"
 
-	echo -n "Processing $(basename ${file})......"
+	echo -n "Processing $(base)......"
 	/build/bin/PoissonReconstruction /inputdata/$(basename ${file}) ${depth} /outputdata/${filename}_poisson.vtk || { echo "FAILED"; }
 	echo "OK"	
     done
