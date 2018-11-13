@@ -8,7 +8,8 @@ do
 	extension="${filename##*.}"
 	filename="${filename%.*}"
 
-	/build/bin/PoissonReconstruction /inputdata/$(basename ${file}) ${depth} /outputdata/${filename}_poisson.${extension}
-	
+	echo "Processing $(basename ${file})......"
+	/build/bin/PoissonReconstruction /inputdata/$(basename ${file}) ${depth} /outputdata/${filename}_poisson.vtk || { echo "FAILED"; }
+	echo "OK"	
     done
 done
